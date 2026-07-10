@@ -34,20 +34,37 @@ jobs:
             exit 1
           fi
 
-          response=$(curl --silent --show-error --fail-with-body \
+          # Tolerate a trailing slash in the APP_URL secret; otherwise
+          # "https://host/" + "/api/cron/sync" yields a // path that Vercel
+          # 308-redirects, and curl treats the redirect as a failure.
+          base="${APP_URL%/}"
+
+          # Capture status and body separately, and do NOT use --fail-with-body:
+          # a partial sync legitimately returns 200 with failures named in the
+          # body, and we want to inspect the body on any status, not abort.
+          # --location follows the 308 if one still occurs.
+          status=$(curl --silent --show-error --location \
             --max-time 300 \
-            --write-out '\n%{http_code}' \
+            --output /tmp/sync-body.json \
+            --write-out '%{http_code}' \
             --header "Authorization: Bearer $CRON_SECRET" \
-            "$APP_URL/api/cron/sync") || {
-              echo "::error::Sync request failed"
-              echo "$response"
+            "$base/api/cron/sync") || {
+              echo "::error::Sync request could not reach $base/api/cron/sync"
               exit 1
             }
 
-          body=$(printf '%s' "$response" | sed '$d')
-          status=$(printf '%s' "$response" | tail -n1)
+          body=$(cat /tmp/sync-body.json 2>/dev/null)
           echo "HTTP $status"
           echo "$body"
+
+          if [ "$status" = "401" ]; then
+            echo "::error::401 Unauthorized -- the CRON_SECRET GitHub secret does not match Vercel's."
+            exit 1
+          fi
+          if [ "$status" != "200" ]; then
+            echo "::error::Sync returned HTTP $status"
+            exit 1
+          fi
 
           # A partial failure still returns 200, with the failures named in the
           # body, so that one dead connection cannot mask the healthy ones.
