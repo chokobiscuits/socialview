@@ -1,0 +1,58 @@
+name: Hourly sync
+
+# Every time-based number in SocialView (sparklines, the views-over-time chart,
+# "+142 today", Biggest Movers) is derived by diffing snapshots we capture
+# ourselves, because no platform API returns view history. Snapshot frequency is
+# therefore chart resolution.
+#
+# Vercel's Hobby plan caps cron at one run per day, which would give the charts
+# a single point every 24 hours. So the real schedule lives here instead, and
+# vercel.json keeps a daily run as a backstop.
+#
+# The endpoint is idempotent per hour bucket: running it twice in the same hour
+# overwrites that hour's reading rather than double-counting it.
+
+on:
+  schedule:
+    # Hourly, on the hour. GitHub queues these on load, so expect drift of a few
+    # minutes; the endpoint floors to the hour anyway.
+    - cron: "0 * * * *"
+  # So you can trigger it by hand from the Actions tab.
+  workflow_dispatch:
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger sync
+        env:
+          APP_URL: ${{ secrets.APP_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          if [ -z "$APP_URL" ] || [ -z "$CRON_SECRET" ]; then
+            echo "::error::APP_URL and CRON_SECRET repository secrets must be set."
+            exit 1
+          fi
+
+          response=$(curl --silent --show-error --fail-with-body \
+            --max-time 300 \
+            --write-out '\n%{http_code}' \
+            --header "Authorization: Bearer $CRON_SECRET" \
+            "$APP_URL/api/cron/sync") || {
+              echo "::error::Sync request failed"
+              echo "$response"
+              exit 1
+            }
+
+          body=$(printf '%s' "$response" | sed '$d')
+          status=$(printf '%s' "$response" | tail -n1)
+          echo "HTTP $status"
+          echo "$body"
+
+          # A partial failure still returns 200, with the failures named in the
+          # body, so that one dead connection cannot mask the healthy ones.
+          # Surface it as a warning rather than failing the whole run.
+          failed=$(printf '%s' "$body" | grep -o '"failed":[0-9]*' | cut -d: -f2)
+          if [ "${failed:-0}" -gt 0 ]; then
+            echo "::warning::$failed connection(s) failed to sync. See the body above."
+          fi

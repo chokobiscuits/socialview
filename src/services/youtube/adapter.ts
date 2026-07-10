@@ -70,9 +70,19 @@ async function tokenRequest(body: Record<string, string>): Promise<TokenResponse
   });
   if (!res.ok) {
     const text = await res.text().catch(() => "");
-    // Google answers a dead refresh token with 400 invalid_grant.
-    if (res.status === 400 && text.includes("invalid_grant")) {
-      throw new TokenRevokedError("YOUTUBE", "Refresh token revoked or expired");
+    // These are all unrecoverable without the user consenting again, so the
+    // sync job must park the connection rather than retry it every hour:
+    //
+    //   invalid_grant      the refresh token was revoked or expired
+    //   deleted_client     the OAuth client itself was deleted
+    //   invalid_client     wrong client id/secret for this grant
+    //   unauthorized_client the client may no longer use this grant type
+    const fatal = /invalid_grant|deleted_client|invalid_client|unauthorized_client/;
+    if (fatal.test(text)) {
+      throw new TokenRevokedError(
+        "YOUTUBE",
+        `Google rejected the grant (${res.status}): ${text.slice(0, 120).replace(/\s+/g, " ")}`,
+      );
     }
     throw new Error(`Google token endpoint ${res.status}: ${text.slice(0, 200)}`);
   }

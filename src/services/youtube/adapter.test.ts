@@ -125,8 +125,30 @@ describe("youtube adapter: refresh", () => {
     await assert.rejects(() => youtubeAdapter.refresh("dead"), TokenRevokedError);
   });
 
+  // Each of these is unrecoverable without the user re-consenting. Treating them
+  // as transient would retry a doomed request every hour, forever, and never
+  // tell the user to reconnect.
+  for (const [status, error] of [
+    [401, "deleted_client"],
+    [401, "invalid_client"],
+    [400, "unauthorized_client"],
+  ] as const) {
+    test(`maps ${status} ${error} to TokenRevokedError`, async () => {
+      stubFetch(() => new Response(`{"error":"${error}"}`, { status }));
+      await assert.rejects(() => youtubeAdapter.refresh("rt"), TokenRevokedError);
+    });
+  }
+
   test("other token failures are not mistaken for revocation", async () => {
     stubFetch(() => new Response("boom", { status: 500 }));
+    await assert.rejects(
+      () => youtubeAdapter.refresh("rt"),
+      (e: Error) => e.name !== "TokenRevokedError",
+    );
+  });
+
+  test("a transient 503 does not force the user to reconnect", async () => {
+    stubFetch(() => new Response("Service Unavailable", { status: 503 }));
     await assert.rejects(
       () => youtubeAdapter.refresh("rt"),
       (e: Error) => e.name !== "TokenRevokedError",

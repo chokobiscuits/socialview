@@ -8,6 +8,11 @@ afterEach(() => {
   process.env = { ...saved };
 });
 
+/** NODE_ENV is typed readonly, so assign it through the record. */
+function setNodeEnv(value: string): void {
+  (process.env as Record<string, string | undefined>).NODE_ENV = value;
+}
+
 describe("env.appUrl", () => {
   test("prefers an explicit NEXT_PUBLIC_APP_URL", () => {
     process.env.NEXT_PUBLIC_APP_URL = "https://socialview.app";
@@ -28,14 +33,14 @@ describe("env.appUrl", () => {
   test("in development, localhost is fine", () => {
     delete process.env.NEXT_PUBLIC_APP_URL;
     delete process.env.VERCEL_PROJECT_PRODUCTION_URL;
-    process.env.NODE_ENV = "development";
+    setNodeEnv("development");
     assert.equal(env.appUrl, "http://localhost:3000");
   });
 
   test("in production, refuses to silently build redirect URIs against localhost", () => {
     delete process.env.NEXT_PUBLIC_APP_URL;
     delete process.env.VERCEL_PROJECT_PRODUCTION_URL;
-    process.env.NODE_ENV = "production";
+    setNodeEnv("production");
     assert.throws(() => env.appUrl, /NEXT_PUBLIC_APP_URL is not set/);
   });
 });

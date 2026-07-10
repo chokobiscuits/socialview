@@ -4,14 +4,15 @@
   "private": true,
   "scripts": {
     "dev": "next dev --port 3000",
-    "build": "next build",
+    "build": "prisma generate && next build",
     "start": "next start",
     "lint": "eslint",
     "test": "tsx --tsconfig tsconfig.test.json --test \"src/**/!(*.integration).test.ts\"",
     "test:integration": "tsx --tsconfig tsconfig.test.json --test --test-concurrency=1 --env-file=.env.test \"src/**/*.integration.test.ts\"",
     "test:all": "npm run test && npm run test:integration",
     "db:test:setup": "tsx --env-file=.env scripts/setup-test-schema.ts",
-    "db:backfill": "tsx --env-file=.env scripts/backfill-snapshots.ts"
+    "db:backfill": "tsx --env-file=.env scripts/backfill-snapshots.ts",
+    "postinstall": "prisma generate"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.2",
