@@ -71,58 +71,75 @@ export async function GET(
     return back("no_refresh_token");
   }
 
-  // A given real account belongs to exactly one SocialView user. Surface the
-  // collision as a message rather than letting the unique constraint 500.
-  const claimed = await prisma.platformConnection.findUnique({
-    where: {
-      platform_externalAccountId: {
+  // Everything below touches the database and the encryption key. A throw here
+  // used to escape as a bare HTTP 500, which tells the user nothing and hides
+  // the cause. Fail to /platforms with a reason instead, and log the real error
+  // so it is visible in the deployment logs.
+  try {
+    // A given real account belongs to exactly one SocialView user. Surface the
+    // collision as a message rather than letting the unique constraint 500.
+    const claimed = await prisma.platformConnection.findUnique({
+      where: {
+        platform_externalAccountId: {
+          platform,
+          externalAccountId: account.externalAccountId,
+        },
+      },
+      select: { userId: true },
+    });
+    if (claimed && claimed.userId !== session.user.id) {
+      return back("already_claimed");
+    }
+
+    const encrypted = {
+      accessTokenEnc: encryptToken(tokens.accessToken),
+      ...(tokens.refreshToken
+        ? { refreshTokenEnc: encryptToken(tokens.refreshToken) }
+        : {}),
+      accessExpiresAt: tokens.accessExpiresAt,
+      refreshExpiresAt: tokens.refreshExpiresAt,
+    };
+
+    // Keyed on the account, so connecting a *second* channel adds a row rather
+    // than overwriting the first.
+    await prisma.platformConnection.upsert({
+      where: {
+        platform_externalAccountId: {
+          platform,
+          externalAccountId: account.externalAccountId,
+        },
+      },
+      create: {
+        userId: session.user.id,
         platform,
         externalAccountId: account.externalAccountId,
+        displayName: account.displayName,
+        avatarUrl: account.avatarUrl,
+        scopes: SCOPES[platform],
+        status: "ACTIVE",
+        ...encrypted,
       },
-    },
-    select: { userId: true },
-  });
-  if (claimed && claimed.userId !== session.user.id) {
-    return back("already_claimed");
+      update: {
+        displayName: account.displayName,
+        avatarUrl: account.avatarUrl,
+        // Reconnecting clears a previous failure.
+        status: "ACTIVE",
+        lastSyncError: null,
+        ...encrypted,
+      },
+    });
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e);
+    // Never log the token itself, only why we could not store it.
+    console.error(`connect/${platform}: failed to store connection: ${message}`);
+
+    // A bad TOKEN_ENCRYPTION_KEY is by far the likeliest cause, and it is a
+    // deployment fault rather than anything the user did.
+    if (/TOKEN_ENCRYPTION_KEY|32 bytes/.test(message)) {
+      return back("bad_encryption_key");
+    }
+    return back("store_failed");
   }
-
-  const encrypted = {
-    accessTokenEnc: encryptToken(tokens.accessToken),
-    ...(tokens.refreshToken
-      ? { refreshTokenEnc: encryptToken(tokens.refreshToken) }
-      : {}),
-    accessExpiresAt: tokens.accessExpiresAt,
-    refreshExpiresAt: tokens.refreshExpiresAt,
-  };
-
-  // Keyed on the account, so connecting a *second* channel adds a row rather
-  // than overwriting the first.
-  await prisma.platformConnection.upsert({
-    where: {
-      platform_externalAccountId: {
-        platform,
-        externalAccountId: account.externalAccountId,
-      },
-    },
-    create: {
-      userId: session.user.id,
-      platform,
-      externalAccountId: account.externalAccountId,
-      displayName: account.displayName,
-      avatarUrl: account.avatarUrl,
-      scopes: SCOPES[platform],
-      status: "ACTIVE",
-      ...encrypted,
-    },
-    update: {
-      displayName: account.displayName,
-      avatarUrl: account.avatarUrl,
-      // Reconnecting clears a previous failure.
-      status: "ACTIVE",
-      lastSyncError: null,
-      ...encrypted,
-    },
-  });
 
   return back(undefined, platform);
 }

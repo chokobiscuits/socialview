@@ -25,6 +25,10 @@ const ERRORS: Record<string, string> = {
   already_claimed:
     "That account is already connected to another SocialView account.",
   exchange_failed: "Could not complete the connection. Try again.",
+  store_failed:
+    "Connected, but the connection could not be saved. See the server logs.",
+  bad_encryption_key:
+    "The server's TOKEN_ENCRYPTION_KEY is missing or malformed, so tokens cannot be stored. It must be 32 random bytes, base64 encoded.",
 };
 
 type ConnectionRow = {
