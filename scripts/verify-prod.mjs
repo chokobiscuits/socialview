@@ -69,8 +69,15 @@ await withDb(async (db) => {
   );
 });
 
+// Auth.js prefixes the session cookie with __Secure- over HTTPS, so sending the
+// bare name to a deployed site is silently ignored and every response is `null`
+// -- which looks exactly like a broken database. Send whichever the origin uses.
+const cookieName = base.startsWith("https://")
+  ? "__Secure-authjs.session-token"
+  : "authjs.session-token";
+
 const sessionRes = await fetch(`${base}/api/auth/session`, {
-  headers: { cookie: `authjs.session-token=${PROBE}` },
+  headers: { cookie: `${cookieName}=${PROBE}` },
 });
 const sessionBody = await sessionRes.text();
 check(
