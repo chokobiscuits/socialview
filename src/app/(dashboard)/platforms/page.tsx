@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { AlertTriangle, Check, Plus } from "lucide-react";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
+import { env } from "@/lib/env";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -89,6 +90,16 @@ export default async function PlatformsPage({
 
   const hasAny = connections.length > 0;
 
+  // Connecting a channel is the first thing that ever encrypts a token, so a
+  // malformed key stays invisible until the user is halfway through an OAuth
+  // flow and then fails as a 500. Check it up front and say so plainly.
+  let keyError: string | null = null;
+  try {
+    void env.tokenEncryptionKey;
+  } catch (e) {
+    keyError = e instanceof Error ? e.message : String(e);
+  }
+
   return (
     <>
       <header className="flex flex-wrap items-start justify-between gap-4 pb-6">
@@ -101,6 +112,18 @@ export default async function PlatformsPage({
         </div>
         {hasAny ? <SyncNowButton /> : null}
       </header>
+
+      {keyError ? (
+        <div className="mb-6 flex items-start gap-3 rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm">
+          <AlertTriangle className="mt-0.5 size-4 shrink-0 text-destructive" />
+          <div>
+            <p className="font-medium">
+              Connecting is disabled: the server cannot encrypt tokens.
+            </p>
+            <p className="mt-1 text-muted-foreground">{keyError}</p>
+          </div>
+        </div>
+      ) : null}
 
       {error ? (
         <div className="mb-6 flex items-start gap-3 rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm">
