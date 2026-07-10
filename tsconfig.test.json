@@ -1,0 +1,12 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "lib": ["esnext"],
+    "types": ["node"],
+    "paths": {
+      "@/*": ["./src/*"],
+      // No bundler under `node:test`, so the real package would throw.
+      "server-only": ["./test/server-only-stub.ts"]
+    }
+  }
+}

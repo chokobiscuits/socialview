@@ -1,0 +1,192 @@
+// SocialView data model.
+//
+// Two ideas drive this schema:
+//
+//  1. Login and data-connection are different things. A User authenticates with
+//     Google (Account/Session, owned by Auth.js). Separately, that user grants
+//     read access to one or more creator accounts (PlatformConnection). YouTube
+//     is a connection even though it is also Google.
+//
+//  2. Platform APIs return a *current* view total and never a history. So every
+//     time-based number in the product (sparklines, "+142 today", movers) is
+//     derived by diffing ViewSnapshot rows that we capture on a schedule.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+// Prisma 7: connection URLs live in prisma.config.ts, and the runtime client
+// takes a driver adapter instead of a URL. See src/lib/db.ts.
+datasource db {
+  provider = "postgresql"
+}
+
+enum Platform {
+  YOUTUBE
+  TIKTOK
+  INSTAGRAM
+}
+
+enum ConnectionStatus {
+  ACTIVE
+  NEEDS_REAUTH
+  REVOKED
+}
+
+// ---------------------------------------------------------------- Auth.js core
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+  createdAt     DateTime  @default(now())
+
+  accounts    Account[]
+  sessions    Session[]
+  connections PlatformConnection[]
+  videos      Video[]
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Required by Auth.js: one identity per provider account.
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// --------------------------------------------------------- Data connections
+
+model PlatformConnection {
+  id       String   @id @default(cuid())
+  userId   String
+  platform Platform
+
+  /// Identity on the platform: YouTube channelId, Instagram ig-user-id, TikTok open_id.
+  externalAccountId String
+  displayName       String?
+  avatarUrl         String?
+
+  /// Ciphertext only, never plaintext. Format: v1:<iv>:<authTag>:<ciphertext>.
+  accessTokenEnc  String  @db.Text
+  refreshTokenEnc String? @db.Text
+
+  accessExpiresAt DateTime?
+  /// Instagram long-lived tokens last 60d; TikTok refresh tokens last 1y.
+  /// Drives proactive refresh and re-consent nudges.
+  refreshExpiresAt DateTime?
+  scopes           String?
+
+  status        ConnectionStatus @default(ACTIVE)
+  lastSyncedAt  DateTime?
+  lastSyncError String?          @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  videos Video[]
+
+  // A user may connect several channels on the same platform (three YouTube
+  // channels, two TikToks, ...). The connection is keyed by the *account* on
+  // that platform, not by the platform itself.
+  //
+  // This still stops the same real channel being claimed twice -- by two
+  // different users, or twice by the same user -- which would double-sync it
+  // and corrupt the aggregate metrics. Reconnecting upserts on this key.
+  @@unique([platform, externalAccountId])
+  @@index([userId, platform])
+  @@index([status])
+}
+
+// ------------------------------------------------------------------- Videos
+
+model Video {
+  id           String   @id @default(cuid())
+  userId       String
+  connectionId String
+  platform     Platform
+
+  externalId   String
+  title        String    @db.Text
+  thumbnailUrl String?   @db.Text
+  permalink    String?   @db.Text
+  publishedAt  DateTime?
+
+  /// Denormalized latest values, refreshed every sync. Serves totals and Top
+  /// Videos without touching the snapshot table.
+  currentViews    BigInt    @default(0)
+  currentLikes    BigInt    @default(0)
+  currentComments BigInt    @default(0)
+  statsUpdatedAt  DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user       User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  connection PlatformConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  snapshots  ViewSnapshot[]
+
+  // The sync upsert key. Guarantees idempotency: re-running sync updates rows
+  // rather than inserting duplicates.
+  @@unique([platform, externalId])
+  @@index([userId, platform])
+  @@index([userId, currentViews])
+  @@index([userId, publishedAt])
+}
+
+// -------------------------------------------------------------- Time series
+
+/// The time series. Many rows per video over time; that is the entire point.
+///
+/// `capturedAt` is floored to the hour by the sync job, and (videoId, capturedAt)
+/// is unique so that re-running sync within the same hour overwrites that hour's
+/// reading instead of appending a duplicate. Without this, a manual sync (or a
+/// cron retry) would double-count rows in `GROUP BY capturedAt`.
+model ViewSnapshot {
+  id         String   @id @default(cuid())
+  videoId    String
+  capturedAt DateTime @default(now())
+
+  views    BigInt
+  likes    BigInt @default(0)
+  comments BigInt @default(0)
+
+  video Video @relation(fields: [videoId], references: [id], onDelete: Cascade)
+
+  @@unique([videoId, capturedAt])
+  @@index([videoId, capturedAt])
+  @@index([capturedAt])
+}
