@@ -15,6 +15,20 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "SocialView",
   description: "Your video performance across every platform, on one screen.",
+  // Domain-ownership proofs that platform developer portals check by fetching a
+  // meta tag from the site root. Set as env vars so a signature is never
+  // hardcoded; unset ones simply omit the tag.
+  other: {
+    ...(process.env.NEXT_PUBLIC_TIKTOK_VERIFICATION
+      ? {
+          "tiktok-developers-site-verification":
+            process.env.NEXT_PUBLIC_TIKTOK_VERIFICATION,
+        }
+      : {}),
+    ...(process.env.NEXT_PUBLIC_FB_VERIFICATION
+      ? { "facebook-domain-verification": process.env.NEXT_PUBLIC_FB_VERIFICATION }
+      : {}),
+  },
 };
 
 export default function RootLayout({
