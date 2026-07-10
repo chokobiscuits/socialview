@@ -15,16 +15,12 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "SocialView",
   description: "Your video performance across every platform, on one screen.",
-  // Domain-ownership proofs that platform developer portals check by fetching a
-  // meta tag from the site root. Set as env vars so a signature is never
-  // hardcoded; unset ones simply omit the tag.
+  // Domain-ownership proofs the platform developer portals check by fetching a
+  // meta tag from the site root. These are public verification tokens, not
+  // secrets, so they live here directly. Meta's is added when we set up the
+  // Instagram app.
   other: {
-    ...(process.env.NEXT_PUBLIC_TIKTOK_VERIFICATION
-      ? {
-          "tiktok-developers-site-verification":
-            process.env.NEXT_PUBLIC_TIKTOK_VERIFICATION,
-        }
-      : {}),
+    "tiktok-developers-site-verification": "63hq0gqk25PLrqJM28vzyaJ5yFZqOTq9",
     ...(process.env.NEXT_PUBLIC_FB_VERIFICATION
       ? { "facebook-domain-verification": process.env.NEXT_PUBLIC_FB_VERIFICATION }
       : {}),
