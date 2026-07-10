@@ -140,3 +140,34 @@
     @apply font-sans;
   }
 }
+/* Minimal typography for the public legal pages. */
+.prose-legal h1 {
+  font-size: 1.875rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  margin-bottom: 0.5rem;
+}
+.prose-legal h2 {
+  font-size: 1.125rem;
+  font-weight: 600;
+  margin-top: 2rem;
+  margin-bottom: 0.5rem;
+}
+.prose-legal p,
+.prose-legal li {
+  color: var(--muted-foreground);
+  line-height: 1.7;
+}
+.prose-legal ul {
+  list-style: disc;
+  padding-left: 1.25rem;
+  margin: 0.5rem 0;
+}
+.prose-legal a {
+  color: var(--primary);
+  text-decoration: underline;
+}
+.prose-legal .updated {
+  font-size: 0.875rem;
+  color: var(--muted-foreground);
+}

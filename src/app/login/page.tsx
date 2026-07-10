@@ -44,6 +44,16 @@ export default async function LoginPage({
           Signing in only shares your name and email. You connect YouTube,
           TikTok, and Instagram separately, whenever you choose.
         </p>
+
+        <p className="mt-4 text-xs text-muted-foreground">
+          <a href="/privacy" className="underline hover:text-foreground">
+            Privacy
+          </a>
+          <span className="px-2">·</span>
+          <a href="/terms" className="underline hover:text-foreground">
+            Terms
+          </a>
+        </p>
       </div>
     </div>
   );
