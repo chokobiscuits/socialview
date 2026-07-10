@@ -40,7 +40,28 @@ export const env = {
   get instagramAppSecret(): string {
     return required("INSTAGRAM_APP_SECRET");
   },
+  /**
+   * The origin OAuth redirect URIs are built from. It must match what is
+   * registered with each provider byte for byte, so a wrong value here fails
+   * with an opaque "redirect_uri_mismatch" from the provider.
+   *
+   * Silently defaulting to localhost in production would do exactly that, so
+   * outside development we insist on a real value. `VERCEL_PROJECT_PRODUCTION_URL`
+   * is injected by Vercel and lets a deployment work before the variable is set.
+   */
   get appUrl(): string {
-    return process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+    const explicit = process.env.NEXT_PUBLIC_APP_URL;
+    if (explicit) return explicit.replace(/\/$/, "");
+
+    const vercel = process.env.VERCEL_PROJECT_PRODUCTION_URL;
+    if (vercel) return `https://${vercel}`;
+
+    if (process.env.NODE_ENV === "production") {
+      throw new Error(
+        "NEXT_PUBLIC_APP_URL is not set. OAuth redirect URIs would be built " +
+          "against localhost and every provider would reject them.",
+      );
+    }
+    return "http://localhost:3000";
   },
 };
