@@ -5,14 +5,13 @@ import { usePathname } from "next/navigation";
 import {
   BarChart3,
   CalendarDays,
-  ChevronUp,
   Home,
   LayoutGrid,
   Settings,
   Video,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { UserMenu } from "./user-menu";
 
 const NAV = [
   { href: "/dashboard", label: "Dashboard", Icon: Home },
@@ -26,7 +25,11 @@ const NAV = [
 export function Sidebar({
   user,
 }: {
-  user?: { name?: string | null; image?: string | null } | null;
+  user?: {
+    name?: string | null;
+    email?: string | null;
+    image?: string | null;
+  } | null;
 }) {
   const pathname = usePathname();
 
@@ -61,18 +64,7 @@ export function Sidebar({
         })}
       </nav>
 
-      <div className="flex items-center gap-3 border-t border-sidebar-border px-4 py-4">
-        <Avatar className="size-9">
-          {user?.image ? <AvatarImage src={user.image} alt="" /> : null}
-          <AvatarFallback>
-            {user?.name?.[0]?.toUpperCase() ?? "?"}
-          </AvatarFallback>
-        </Avatar>
-        <span className="flex-1 truncate text-sm font-medium">
-          {user?.name ?? "Not signed in"}
-        </span>
-        <ChevronUp className="size-4 text-muted-foreground" />
-      </div>
+      <UserMenu user={user} />
     </aside>
   );
 }

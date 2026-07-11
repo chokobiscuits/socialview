@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo, useState } from "react";
 import {
   Area,
   AreaChart,
@@ -13,6 +14,8 @@ import { PLATFORM_META, type Platform } from "@/lib/platforms";
 import { formatCompact, formatFull } from "@/lib/format";
 
 type Row = { label: string; full: string } & Partial<Record<Platform, number>>;
+
+type Mode = "total" | "gained";
 
 function ChartTooltip({
   active,
@@ -61,10 +64,51 @@ export function PlatformAreaChart({
   data: Row[];
   platforms: Platform[];
 }) {
+  const [mode, setMode] = useState<Mode>("total");
+
+  // "Gained" = the difference from the previous bucket, per platform. A
+  // cumulative total only ever climbs; the delta shows where views are actually
+  // being added. The first bucket has no predecessor, so it is dropped.
+  const chartData = useMemo(() => {
+    if (mode === "total") return data;
+    return data.slice(1).map((row, i) => {
+      const prev = data[i]; // data[i] is the row before data[i+1]
+      const out: Row = { label: row.label, full: row.full };
+      for (const p of platforms) {
+        out[p] = Math.max(0, (row[p] ?? 0) - (prev[p] ?? 0));
+      }
+      return out;
+    });
+  }, [data, platforms, mode]);
+
   return (
     <div className="flex h-full flex-col">
+      <div className="mb-2 flex justify-end">
+        <div className="inline-flex rounded-lg border border-border p-0.5 text-xs">
+          <button
+            onClick={() => setMode("total")}
+            className={`rounded-md px-2.5 py-1 font-medium transition-colors ${
+              mode === "total"
+                ? "bg-secondary text-foreground"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            Total
+          </button>
+          <button
+            onClick={() => setMode("gained")}
+            className={`rounded-md px-2.5 py-1 font-medium transition-colors ${
+              mode === "gained"
+                ? "bg-secondary text-foreground"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            Gained
+          </button>
+        </div>
+      </div>
       <ResponsiveContainer width="100%" height="100%">
-        <AreaChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
+        <AreaChart data={chartData} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
           <defs>
             {platforms.map((p) => (
               <linearGradient key={p} id={`grad-${p}`} x1="0" y1="0" x2="0" y2="1">
