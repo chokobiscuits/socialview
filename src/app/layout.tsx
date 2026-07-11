@@ -20,7 +20,7 @@ export const metadata: Metadata = {
   // secrets, so they live here directly. Meta's is added when we set up the
   // Instagram app.
   other: {
-    "tiktok-developers-site-verification": "63hq0gqk25PLrqJM28vzyaJ5yFZqOTq9",
+    "tiktok-developers-site-verification": "eXciqJ6DLslXX4Z1qvhu9NvfvmOv4jLY",
     ...(process.env.NEXT_PUBLIC_FB_VERIFICATION
       ? { "facebook-domain-verification": process.env.NEXT_PUBLIC_FB_VERIFICATION }
       : {}),
