@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PLATFORM_META, type Platform } from "@/lib/platforms";
@@ -22,6 +22,12 @@ function ymd(d: Date): string {
 }
 
 export function PostingCalendar({ posts }: { posts: Post[] }) {
+  // The grid is grouped and laid out in the *viewer's* local timezone, which
+  // the server does not know. Rendering it on the server would disagree with
+  // the client and trip a hydration mismatch, so we draw it only after mount.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
   // Group posts by local calendar day.
   const byDay = useMemo(() => {
     const map = new Map<string, Post[]>();
@@ -60,6 +66,17 @@ export function PostingCalendar({ posts }: { posts: Post[] }) {
     year: "numeric",
   });
   const selectedPosts = selected ? (byDay.get(selected) ?? []) : [];
+
+  // Reserve the layout's footprint until the client takes over, so there is no
+  // flash and no server/client divergence.
+  if (!mounted) {
+    return (
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
+        <div className="min-h-[520px] rounded-xl border border-border bg-card" />
+        <div className="rounded-xl border border-border bg-card" />
+      </div>
+    );
+  }
 
   return (
     <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
