@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { ArrowDown } from "lucide-react";
 import {
   Table,
@@ -61,11 +62,17 @@ export function VideosTable({
 
                 <TableCell className="w-full max-w-0">
                   <div className="flex items-center gap-3">
-                    <Thumbnail
-                      src={v.thumbnailUrl}
-                      alt=""
-                      className="h-[38px] w-[68px] shrink-0"
-                    />
+                    <Link
+                      href={`/videos/${v.id}`}
+                      className="shrink-0 rounded transition-opacity hover:opacity-80 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                      title="View analytics"
+                    >
+                      <Thumbnail
+                        src={v.thumbnailUrl}
+                        alt=""
+                        className="h-[38px] w-[68px]"
+                      />
+                    </Link>
                     <div className="min-w-0 flex-1">
                       {v.permalink ? (
                         <a
