@@ -79,7 +79,7 @@ export default async function AnalyticsPage({
 
   // Merge each platform's series into one row per timestamp for the stacked
   // chart. Built only when there is history to draw.
-  type ChartRow = { label: string; full: string } & Partial<Record<Platform, number>>;
+  type ChartRow = { t: number; label: string; full: string } & Partial<Record<Platform, number>>;
   let chartData: ChartRow[] = [];
   if (hasHistory) {
     const perPlatform = await Promise.all(
@@ -102,7 +102,7 @@ export default async function AnalyticsPage({
     );
     const fmt = labelsFor(rows);
     chartData = rows.map((r) => {
-      const out: ChartRow = { label: fmt.short(r.t), full: fmt.full(r.t) };
+      const out: ChartRow = { t: r.t.getTime(), label: fmt.short(r.t), full: fmt.full(r.t) };
       for (const p of platforms) out[p] = r[p] ?? 0;
       return out;
     });

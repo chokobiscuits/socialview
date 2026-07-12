@@ -13,7 +13,7 @@ import {
 import { PLATFORM_META, type Platform } from "@/lib/platforms";
 import { formatCompact, formatFull } from "@/lib/format";
 
-type Row = { label: string; full: string } & Partial<Record<Platform, number>>;
+type Row = { t: number; label: string; full: string } & Partial<Record<Platform, number>>;
 
 type Mode = "total" | "gained";
 
@@ -73,13 +73,22 @@ export function PlatformAreaChart({
     if (mode === "total") return data;
     return data.slice(1).map((row, i) => {
       const prev = data[i]; // data[i] is the row before data[i+1]
-      const out: Row = { label: row.label, full: row.full };
+      const out: Row = { t: row.t, label: row.label, full: row.full };
       for (const p of platforms) {
         out[p] = Math.max(0, (row[p] ?? 0) - (prev[p] ?? 0));
       }
       return out;
     });
   }, [data, platforms, mode]);
+
+  // Tick labels are looked up by timestamp: the XAxis is keyed on the unique
+  // bucket time `t`, not on the (non-unique) date string, so hourly points on
+  // the same day stay distinct and the tooltip resolves to the hovered bucket.
+  const labelByT = useMemo(() => {
+    const m = new Map<number, string>();
+    for (const row of chartData) m.set(row.t, row.label);
+    return m;
+  }, [chartData]);
 
   return (
     <div className="flex h-full flex-col">
@@ -124,7 +133,11 @@ export function PlatformAreaChart({
             className="text-border"
           />
           <XAxis
-            dataKey="label"
+            dataKey="t"
+            type="number"
+            scale="time"
+            domain={["dataMin", "dataMax"]}
+            tickFormatter={(t: number) => labelByT.get(t) ?? ""}
             tickLine={false}
             axisLine={false}
             tick={{ fontSize: 11 }}
