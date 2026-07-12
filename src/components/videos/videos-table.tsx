@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowDown } from "lucide-react";
+import { ArrowDown, LineChart } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -44,6 +44,9 @@ export function VideosTable({
             <TableHead className="text-right">Likes</TableHead>
             <TableHead className="text-right">Comments</TableHead>
             <TableHead className="text-right">Posted</TableHead>
+            <TableHead className="w-[44px]">
+              <span className="sr-only">Trend</span>
+            </TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -62,17 +65,11 @@ export function VideosTable({
 
                 <TableCell className="w-full max-w-0">
                   <div className="flex items-center gap-3">
-                    <Link
-                      href={`/videos/${v.id}`}
-                      className="shrink-0 rounded transition-opacity hover:opacity-80 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-                      title="View analytics"
-                    >
-                      <Thumbnail
-                        src={v.thumbnailUrl}
-                        alt=""
-                        className="h-[38px] w-[68px]"
-                      />
-                    </Link>
+                    <Thumbnail
+                      src={v.thumbnailUrl}
+                      alt=""
+                      className="h-[38px] w-[68px] shrink-0"
+                    />
                     <div className="min-w-0 flex-1">
                       {v.permalink ? (
                         <a
@@ -108,6 +105,16 @@ export function VideosTable({
                 </TableCell>
                 <TableCell className="text-right text-sm whitespace-nowrap text-muted-foreground">
                   {v.publishedAt ? formatRelative(v.publishedAt) : "—"}
+                </TableCell>
+                <TableCell className="text-right">
+                  <Link
+                    href={`/videos/${v.id}`}
+                    title="View analytics"
+                    className="inline-grid size-8 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                  >
+                    <LineChart className="size-4" />
+                    <span className="sr-only">View analytics</span>
+                  </Link>
                 </TableCell>
               </TableRow>
             );

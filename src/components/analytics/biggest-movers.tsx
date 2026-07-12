@@ -1,4 +1,5 @@
-import { TrendingUp } from "lucide-react";
+import Link from "next/link";
+import { TrendingUp, LineChart } from "lucide-react";
 import { PLATFORM_META } from "@/lib/platforms";
 import { formatCompact, formatDelta } from "@/lib/format";
 import type { Mover } from "@/server/queries/timeseries";
@@ -59,19 +60,27 @@ export function BiggestMovers({
               </>
             );
             return (
-              <li key={m.id}>
+              <li key={m.id} className="flex items-center gap-1">
                 {m.permalink ? (
                   <a
                     href={m.permalink}
                     target="_blank"
                     rel="noreferrer"
-                    className="flex items-center gap-3 rounded-md p-1.5 -m-1.5 transition-colors hover:bg-accent"
+                    className="flex min-w-0 flex-1 items-center gap-3 rounded-md p-1.5 -m-1.5 transition-colors hover:bg-accent"
                   >
                     {row}
                   </a>
                 ) : (
-                  <div className="flex items-center gap-3">{row}</div>
+                  <div className="flex min-w-0 flex-1 items-center gap-3">{row}</div>
                 )}
+                <Link
+                  href={`/videos/${m.id}`}
+                  title="View analytics"
+                  className="grid size-8 shrink-0 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                >
+                  <LineChart className="size-4" />
+                  <span className="sr-only">View analytics</span>
+                </Link>
               </li>
             );
           })}
